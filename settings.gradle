@@ -1,2 +1,2 @@
 include ':app'
-rootProject.name='Route Tracker'
+rootProject.name='RouteTracker'
