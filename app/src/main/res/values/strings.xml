@@ -3,5 +3,8 @@
     <string name="title_recent">Recent</string>
     <string name="title_map">Map</string>
     <string name="title_weather">Weather</string>
-    <string name="mapbox_access_token">pk.eyJ1Ijoid2VsYnltIiwiYSI6ImNrOHhmZ2cyZzBqanEzbXJ6b3BpaHhicHIifQ.5osNmEEJ_7PkwM5ADpkayg</string>
+    <string name="mapbox_access_token" translatable="false">pk.eyJ1Ijoid2VsYnltIiwiYSI6ImNrOHhmZ2cyZzBqanEzbXJ6b3BpaHhicHIifQ.5osNmEEJ_7PkwM5ADpkayg</string>
+    <string name="weather_access_token" translatable="false">9c10a1e4adceb47b5e8e59db6ab4a1c2</string>
+    <string name="new_location">Lat: % Lon: %</string>
+    <string name="ApiError">That didn\'t work!</string>
 </resources>
