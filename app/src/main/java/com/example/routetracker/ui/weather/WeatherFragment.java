@@ -40,7 +40,7 @@ public class WeatherFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_weather, container, false);
+        final View view = inflater.inflate(R.layout.fragment_weather, container, false);
         final TextView weatherText = view.findViewById(R.id.weather);
         final ImageView weatherIcon = view.findViewById(R.id.icon);
         Location location = receiver.receiveLocation();
@@ -65,6 +65,16 @@ public class WeatherFragment extends Fragment {
                         weatherText.setText(jsonWeatherObject.get("main").getAsString());
                         Picasso.get().load("https://openweathermap.org/img/wn/" +
                                 jsonWeatherObject.get("icon").getAsString() + "@2x.png").into(weatherIcon);
+                        if (jsonWeatherObject.get("id").getAsInt() < 800) {
+                            // Any ID below 800 is bad weather like rain, snow, thunderstorms
+                            view.setBackgroundColor(getResources().getColor(R.color.badWeather,null));
+                        } else if (jsonWeatherObject.get("id").getAsInt() == 800) {
+                            // 800 ID means weather is clear
+                            view.setBackgroundColor(getResources().getColor(R.color.goodWeather,null));
+                        } else {
+                            // Above 800 is clouds which may or may not be a problem
+                            view.setBackgroundColor(getResources().getColor(R.color.midWeather,null));
+                        }
                     }
                 }, new Response.ErrorListener() {
             @Override
