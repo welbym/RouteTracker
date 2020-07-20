@@ -1,6 +1,7 @@
 package com.example.routetracker.ui.weather;
 
-import android.media.Image;
+import android.content.Context;
+import android.location.Location;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +18,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.example.routetracker.LocationReceiver;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.example.routetracker.R;
@@ -24,19 +26,30 @@ import com.squareup.picasso.Picasso;
 
 public class WeatherFragment extends Fragment {
 
+    private LocationReceiver receiver;
+
     public WeatherFragment() {
     }
 
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        receiver = (LocationReceiver) context;
+    }
+
+    @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_weather, container, false);
         final TextView weatherText = view.findViewById(R.id.weather);
         final ImageView weatherIcon = view.findViewById(R.id.icon);
+        Location location = receiver.receiveLocation();
 
         // Create API call to OpenWeather
         // Instantiate the RequestQueue.
         RequestQueue queue = Volley.newRequestQueue(requireContext());
-        String url = "https://api.openweathermap.org/data/2.5/weather?appid=" + getString(R.string.weather_access_token) + "&lat=41.668041&lon=-87.799004";
+        String url = "https://api.openweathermap.org/data/2.5/weather?appid=" + getString(R.string.weather_access_token) +
+                "&lat=" + location.getLatitude() + "&lon=" + location.getLongitude();
 
         // Request a string response from the provided URL.
         StringRequest stringRequest = new StringRequest(Request.Method.GET, url,

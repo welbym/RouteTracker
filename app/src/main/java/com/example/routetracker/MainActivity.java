@@ -38,13 +38,15 @@ import java.util.List;
 import static android.os.Looper.getMainLooper;
 
 public class MainActivity extends AppCompatActivity implements
-        OnMapReadyCallback, MapReadyCallbackReceiver, PermissionsListener {
+        OnMapReadyCallback, MapReadyCallbackReceiver, PermissionsListener, LocationReceiver {
 
     private static final long DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L;
     private static final long DEFAULT_MAX_WAIT_TIME = DEFAULT_INTERVAL_IN_MILLISECONDS * 5;
     private MapboxMap mapboxMap;
     private PermissionsManager permissionsManager;
     private LocationEngine locationEngine;
+    private Location location;
+    private boolean firstLocationStored;
     public OnMapReadyCallback mapReadyCallback;
     private LocationChangeListeningActivityLocationCallback callback =
             new LocationChangeListeningActivityLocationCallback(this);
@@ -56,6 +58,7 @@ public class MainActivity extends AppCompatActivity implements
         setContentView(R.layout.activity_main);
         setNavigation();
         mapReadyCallback = this;
+        firstLocationStored = false;
     }
 
     private void setNavigation() {
@@ -64,10 +67,16 @@ public class MainActivity extends AppCompatActivity implements
         NavigationUI.setupWithNavController(navView, navController);
     }
 
-    // Interface to send info to Map Fragment
+    // Interface to send callback info to Map Fragment
     @Override
     public OnMapReadyCallback receiveMapReadyCallback() {
         return mapReadyCallback;
+    }
+
+    // Interface to send location info to Weather Fragment
+    @Override
+    public Location receiveLocation() {
+        return location;
     }
 
     @Override
@@ -184,10 +193,14 @@ public class MainActivity extends AppCompatActivity implements
                 if (location == null) {
                     return;
                 }
+                if (!activity.firstLocationStored) {
+                    activity.location = location;
+                    activity.firstLocationStored = true;
+                }
 
                 // Pass the new location to the Maps SDK's LocationComponent
                 if (activity.mapboxMap != null && result.getLastLocation() != null) {
-                    activity.mapboxMap.getLocationComponent().forceLocationUpdate(result.getLastLocation());
+                    activity.mapboxMap.getLocationComponent().forceLocationUpdate(location);
                 }
             }
         }
