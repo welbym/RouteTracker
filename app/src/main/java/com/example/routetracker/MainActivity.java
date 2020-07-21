@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.SparseArray;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -39,11 +40,16 @@ import androidx.navigation.Navigation;
 import androidx.navigation.ui.NavigationUI;
 
 import java.lang.ref.WeakReference;
+import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements
         OnMapReadyCallback, PermissionsListener, WeatherReceiver, MapReceiver {
 
+    private final String TAG = "Main Activity";
+
+    // Variables used for MapFragment
     private static final long DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L;
     private static final long DEFAULT_MAX_WAIT_TIME = DEFAULT_INTERVAL_IN_MILLISECONDS * 5;
     private MapboxMap mapboxMap;
@@ -54,7 +60,13 @@ public class MainActivity extends AppCompatActivity implements
     public OnMapReadyCallback mapReadyCallback;
     private LocationChangeListeningActivityLocationCallback callback =
             new LocationChangeListeningActivityLocationCallback(this);
+    private boolean tracking;
+    private SparseArray<Location> routeArray;
 
+    // temporary start timestamp for route
+    private Timestamp timestamp;
+
+    // Variables used for WeatherFragment
     private String weatherText;
     private String weatherIcon;
     private int weatherColor;
@@ -67,6 +79,7 @@ public class MainActivity extends AppCompatActivity implements
         setNavigation();
         mapReadyCallback = this;
         firstLocationStored = false;
+        routeArray = new SparseArray<>();
     }
 
     private void setNavigation() {
@@ -241,12 +254,19 @@ public class MainActivity extends AppCompatActivity implements
                 if (!activity.firstLocationStored) {
                     activity.location = location;
                     activity.firstLocationStored = true;
+                    // need to get first location before getting weather info
                     activity.processWeatherRequest();
                 }
 
                 // Pass the new location to the Maps SDK's LocationComponent
                 if (activity.mapboxMap != null && result.getLastLocation() != null) {
                     activity.mapboxMap.getLocationComponent().forceLocationUpdate(location);
+                }
+
+                // Store the new location for route tracing
+                if (activity.tracking) {
+                    activity.routeArray.put(activity.routeArray.size(), location);
+                    Log.d(activity.TAG, "routeArray size " + activity.routeArray.size());
                 }
             }
         }
@@ -271,6 +291,18 @@ public class MainActivity extends AppCompatActivity implements
         super.onDestroy();
         if (locationEngine != null) {
             locationEngine.removeLocationUpdates(callback);
+        }
+    }
+
+    @Override
+    public void track(boolean tracking) {
+        this.tracking = tracking;
+        if (tracking) {
+            timestamp = new Timestamp(System.currentTimeMillis());
+            Log.d(TAG, "Started tracking " + timestamp);
+        } else {
+            Route route = new Route(timestamp, new Timestamp(System.currentTimeMillis()), routeArray);
+            Log.d(TAG, "Stopped tracking " + route.getEnd());
         }
     }
 

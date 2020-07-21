@@ -50,6 +50,7 @@ public class MapFragment extends Fragment {
                     trackingButton.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_start, 0, 0);
                     tracking = false;
                 }
+                receiver.track(tracking);
             }
         });
         return view;
