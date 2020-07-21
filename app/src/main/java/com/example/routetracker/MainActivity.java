@@ -1,12 +1,21 @@
 package com.example.routetracker;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.location.LocationEngineCallback;
 import com.mapbox.android.core.location.LocationEngineProvider;
@@ -19,8 +28,6 @@ import com.mapbox.mapboxsdk.location.LocationComponent;
 import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions;
 import com.mapbox.mapboxsdk.location.modes.CameraMode;
 import com.mapbox.mapboxsdk.location.modes.RenderMode;
-import com.mapbox.mapboxsdk.maps.MapFragment;
-import com.mapbox.mapboxsdk.maps.MapView;
 import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
 import com.mapbox.mapboxsdk.maps.Style;
@@ -32,13 +39,10 @@ import androidx.navigation.Navigation;
 import androidx.navigation.ui.NavigationUI;
 
 import java.lang.ref.WeakReference;
-import java.util.HashMap;
 import java.util.List;
 
-import static android.os.Looper.getMainLooper;
-
 public class MainActivity extends AppCompatActivity implements
-        OnMapReadyCallback, MapReadyCallbackReceiver, PermissionsListener, LocationReceiver {
+        OnMapReadyCallback, PermissionsListener, WeatherReceiver, MapReceiver {
 
     private static final long DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L;
     private static final long DEFAULT_MAX_WAIT_TIME = DEFAULT_INTERVAL_IN_MILLISECONDS * 5;
@@ -50,6 +54,10 @@ public class MainActivity extends AppCompatActivity implements
     public OnMapReadyCallback mapReadyCallback;
     private LocationChangeListeningActivityLocationCallback callback =
             new LocationChangeListeningActivityLocationCallback(this);
+
+    private String weatherText;
+    private String weatherIcon;
+    private int weatherColor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,16 +75,53 @@ public class MainActivity extends AppCompatActivity implements
         NavigationUI.setupWithNavController(navView, navController);
     }
 
-    // Interface to send callback info to Map Fragment
-    @Override
-    public OnMapReadyCallback receiveMapReadyCallback() {
-        return mapReadyCallback;
-    }
+    private void processWeatherRequest() {
+        try {
+            // Create API call to OpenWeather
+            // Instantiate the RequestQueue.
+            RequestQueue queue = Volley.newRequestQueue(this);
+            String url = "https://api.openweathermap.org/data/2.5/weather?appid=" + getString(R.string.weather_access_token) +
+                    "&lat=" + location.getLatitude() + "&lon=" + location.getLongitude();
 
-    // Interface to send location info to Weather Fragment
-    @Override
-    public Location receiveLocation() {
-        return location;
+            // Request a string response from the provided URL.
+            StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
+                    new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+                            Gson gson = new Gson();
+                            // turns String response into a JsonObject
+                            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+                            String weatherString = jsonResponse.get("weather").toString();
+                            JsonObject jsonWeatherObject = gson.fromJson(weatherString.substring(1,
+                                    weatherString.length() - 1), JsonObject.class);
+                            weatherText = jsonWeatherObject.get("main").getAsString();
+                            weatherIcon = "https://openweathermap.org/img/wn/" +
+                                    jsonWeatherObject.get("icon").getAsString() + "@2x.png";
+                            int weatherID = jsonWeatherObject.get("id").getAsInt();
+                            if (weatherID < 800) {
+                                // Any ID below 800 is bad weather like rain, snow, thunderstorms
+                                weatherColor = getResources().getColor(R.color.badWeather, null);
+                            } else if (weatherID == 800) {
+                                // 800 ID means weather is clear
+                                weatherColor = getResources().getColor(R.color.goodWeather, null);
+                            } else {
+                                // Above 800 is clouds which may or may not be a problem
+                                weatherColor = getResources().getColor(R.color.midWeather, null);
+                            }
+                        }
+                    }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    weatherText = getString(R.string.ApiError);
+                    weatherColor = Color.BLUE;
+                }
+            });
+
+            // Add the request to the RequestQueue.
+            queue.add(stringRequest);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -196,6 +241,7 @@ public class MainActivity extends AppCompatActivity implements
                 if (!activity.firstLocationStored) {
                     activity.location = location;
                     activity.firstLocationStored = true;
+                    activity.processWeatherRequest();
                 }
 
                 // Pass the new location to the Maps SDK's LocationComponent
@@ -226,6 +272,27 @@ public class MainActivity extends AppCompatActivity implements
         if (locationEngine != null) {
             locationEngine.removeLocationUpdates(callback);
         }
+    }
+
+    // Interface to send callback info to Map Fragment
+    @Override
+    public OnMapReadyCallback receiveMapReadyCallback() {
+        return mapReadyCallback;
+    }
+
+    @Override
+    public String receiveText() {
+        return weatherText;
+    }
+
+    @Override
+    public String receiveIcon() {
+        return weatherIcon;
+    }
+
+    @Override
+    public int receiveColor() {
+        return weatherColor;
     }
 
 }
