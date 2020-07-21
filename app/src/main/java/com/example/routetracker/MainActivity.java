@@ -3,6 +3,7 @@ package com.example.routetracker;
 import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.SparseArray;
@@ -10,8 +11,6 @@ import android.widget.Toast;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -24,6 +23,7 @@ import com.mapbox.android.core.location.LocationEngineRequest;
 import com.mapbox.android.core.location.LocationEngineResult;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
+import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.location.LocationComponent;
 import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions;
@@ -32,17 +32,23 @@ import com.mapbox.mapboxsdk.location.modes.RenderMode;
 import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
 import com.mapbox.mapboxsdk.maps.Style;
+import com.mapbox.mapboxsdk.style.layers.LineLayer;
+import com.mapbox.mapboxsdk.style.layers.Property;
+import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
+import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.NavigationUI;
 
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.sql.Timestamp;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Scanner;
 
 public class MainActivity extends AppCompatActivity implements
         OnMapReadyCallback, PermissionsListener, WeatherReceiver, MapReceiver {
@@ -98,37 +104,31 @@ public class MainActivity extends AppCompatActivity implements
 
             // Request a string response from the provided URL.
             StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
-                    new Response.Listener<String>() {
-                        @Override
-                        public void onResponse(String response) {
-                            Gson gson = new Gson();
-                            // turns String response into a JsonObject
-                            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
-                            String weatherString = jsonResponse.get("weather").toString();
-                            JsonObject jsonWeatherObject = gson.fromJson(weatherString.substring(1,
-                                    weatherString.length() - 1), JsonObject.class);
-                            weatherText = jsonWeatherObject.get("main").getAsString();
-                            weatherIcon = "https://openweathermap.org/img/wn/" +
-                                    jsonWeatherObject.get("icon").getAsString() + "@2x.png";
-                            int weatherID = jsonWeatherObject.get("id").getAsInt();
-                            if (weatherID < 800) {
-                                // Any ID below 800 is bad weather like rain, snow, thunderstorms
-                                weatherColor = getResources().getColor(R.color.badWeather, null);
-                            } else if (weatherID == 800) {
-                                // 800 ID means weather is clear
-                                weatherColor = getResources().getColor(R.color.goodWeather, null);
-                            } else {
-                                // Above 800 is clouds which may or may not be a problem
-                                weatherColor = getResources().getColor(R.color.midWeather, null);
-                            }
+                    response -> {
+                        Gson gson = new Gson();
+                        // turns String response into a JsonObject
+                        JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+                        String weatherString = jsonResponse.get("weather").toString();
+                        JsonObject jsonWeatherObject = gson.fromJson(weatherString.substring(1,
+                                weatherString.length() - 1), JsonObject.class);
+                        weatherText = jsonWeatherObject.get("main").getAsString();
+                        weatherIcon = "https://openweathermap.org/img/wn/" +
+                                jsonWeatherObject.get("icon").getAsString() + "@2x.png";
+                        int weatherID = jsonWeatherObject.get("id").getAsInt();
+                        if (weatherID < 800) {
+                            // Any ID below 800 is bad weather like rain, snow, thunderstorms
+                            weatherColor = getResources().getColor(R.color.badWeather, null);
+                        } else if (weatherID == 800) {
+                            // 800 ID means weather is clear
+                            weatherColor = getResources().getColor(R.color.goodWeather, null);
+                        } else {
+                            // Above 800 is clouds which may or may not be a problem
+                            weatherColor = getResources().getColor(R.color.midWeather, null);
                         }
-                    }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    weatherText = getString(R.string.ApiError);
-                    weatherColor = Color.BLUE;
-                }
-            });
+                    }, error -> {
+                        weatherText = getString(R.string.ApiError);
+                        weatherColor = Color.BLUE;
+                    });
 
             // Add the request to the RequestQueue.
             queue.add(stringRequest);
@@ -141,12 +141,10 @@ public class MainActivity extends AppCompatActivity implements
     public void onMapReady(@NonNull final MapboxMap mapboxMap) {
         this.mapboxMap = mapboxMap;
 
-        mapboxMap.setStyle(Style.OUTDOORS, new Style.OnStyleLoaded() {
-            @Override
-            public void onStyleLoaded(@NonNull Style style) {
-                // Map is set up and the style has loaded. Now you can add data or make other map adjustments
-                enableLocationComponent(style);
-            }
+        mapboxMap.setStyle(Style.OUTDOORS, style -> {
+            // Map is set up and the style has loaded. Now you can add data or make other map adjustments
+            enableLocationComponent(style);
+            new LoadGeoJson(MainActivity.this).execute();
         });
     }
 
@@ -216,12 +214,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onPermissionResult(boolean granted) {
         if (granted) {
-            mapboxMap.getStyle(new Style.OnStyleLoaded() {
-                @Override
-                public void onStyleLoaded(@NonNull Style style) {
-                    enableLocationComponent(style);
-                }
-            });
+            mapboxMap.getStyle(this::enableLocationComponent);
         } else {
             Toast.makeText(this, "Not granted", Toast.LENGTH_LONG).show();
         }
@@ -282,6 +275,64 @@ public class MainActivity extends AppCompatActivity implements
             if (activity != null) {
                 Toast.makeText(activity, exception.getLocalizedMessage(),
                         Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void drawLines(@NonNull FeatureCollection featureCollection) {
+        if (mapboxMap != null) {
+            mapboxMap.getStyle(style -> {
+                if (featureCollection.features() != null) {
+                    if (featureCollection.features().size() > 0) {
+                        style.addSource(new GeoJsonSource("line-source", featureCollection));
+
+                        // The layer properties for our line. This is where we make the line dotted, set the
+                        // color, etc.
+                        style.addLayer(new LineLayer("linelayer", "line-source")
+                                .withProperties(PropertyFactory.lineCap(Property.LINE_CAP_SQUARE),
+                                        PropertyFactory.lineJoin(Property.LINE_JOIN_MITER),
+                                        PropertyFactory.lineOpacity(.7f),
+                                        PropertyFactory.lineWidth(7f),
+                                        PropertyFactory.lineColor(Color.parseColor("#3bb2d0"))));
+                    }
+                }
+            });
+        }
+    }
+
+    private static class LoadGeoJson extends AsyncTask<Void, Void, FeatureCollection> {
+
+        private WeakReference<MainActivity> weakReference;
+
+        LoadGeoJson(MainActivity activity) {
+            this.weakReference = new WeakReference<>(activity);
+        }
+
+        @Override
+        protected FeatureCollection doInBackground(Void... voids) {
+            try {
+                MainActivity activity = weakReference.get();
+                if (activity != null) {
+                    InputStream inputStream = activity.getAssets().open("example.geojson");
+                    return FeatureCollection.fromJson(convertStreamToString(inputStream));
+                }
+            } catch (Exception exception) {
+                Log.e("Exception Loading GeoJSON: %s" , exception.toString());
+            }
+            return null;
+        }
+
+        static String convertStreamToString(InputStream is) {
+            Scanner scanner = new Scanner(is).useDelimiter("\\A");
+            return scanner.hasNext() ? scanner.next() : "";
+        }
+
+        @Override
+        protected void onPostExecute(@Nullable FeatureCollection featureCollection) {
+            super.onPostExecute(featureCollection);
+            MainActivity activity = weakReference.get();
+            if (activity != null && featureCollection != null) {
+                activity.drawLines(featureCollection);
             }
         }
     }

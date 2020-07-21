@@ -40,18 +40,15 @@ public class MapFragment extends Fragment {
         mapView.getMapAsync(receiver.receiveMapReadyCallback());
         tracking = false;
         trackingButton = view.findViewById(R.id.tracking_button);
-        trackingButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (!tracking) {
-                    trackingButton.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_stop, 0, 0);
-                    tracking = true;
-                } else {
-                    trackingButton.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_start, 0, 0);
-                    tracking = false;
-                }
-                receiver.track(tracking);
+        trackingButton.setOnClickListener(v -> {
+            if (!tracking) {
+                trackingButton.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_stop, 0, 0);
+                tracking = true;
+            } else {
+                trackingButton.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_start, 0, 0);
+                tracking = false;
             }
+            receiver.track(tracking);
         });
         return view;
     }
