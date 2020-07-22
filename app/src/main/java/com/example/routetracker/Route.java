@@ -1,27 +1,33 @@
 package com.example.routetracker;
 
-import android.location.Location;
-import android.util.SparseArray;
+import java.util.ArrayList;
+
+import com.mapbox.geojson.Point;
 
 import java.sql.Timestamp;
 
-public class Route {
+class Route {
 
     private Timestamp start;
     private Timestamp end;
-    private SparseArray<Location> routeArray;
+    private ArrayList<Point> routeArray;
 
-    public Route(Timestamp start, Timestamp end, SparseArray<Location> routeArray) {
+    Route(Timestamp start, Timestamp end, ArrayList<Point> routeArray) {
         this.start = start;
         this.end = end;
         this.routeArray = routeArray;
     }
 
-    public Timestamp getStart() {
+    Timestamp getStart() {
         return start;
     }
 
-    public Timestamp getEnd() {
+    Timestamp getEnd() {
         return end;
     }
+
+    ArrayList<Point> getRouteArray() {
+        return routeArray;
+    }
+
 }

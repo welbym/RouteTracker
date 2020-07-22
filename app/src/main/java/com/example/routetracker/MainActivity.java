@@ -3,10 +3,9 @@ package com.example.routetracker;
 import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.location.Location;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.SparseArray;
+import android.view.View;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -23,7 +22,10 @@ import com.mapbox.android.core.location.LocationEngineRequest;
 import com.mapbox.android.core.location.LocationEngineResult;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
+import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.LineString;
+import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.location.LocationComponent;
 import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions;
@@ -38,22 +40,22 @@ import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.NavigationUI;
 
-import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class MainActivity extends AppCompatActivity implements
         OnMapReadyCallback, PermissionsListener, WeatherReceiver, MapReceiver {
 
     private final String TAG = "Main Activity";
+
+    private BottomNavigationView navView;
 
     // Variables used for MapFragment
     private static final long DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L;
@@ -67,7 +69,7 @@ public class MainActivity extends AppCompatActivity implements
     private LocationChangeListeningActivityLocationCallback callback =
             new LocationChangeListeningActivityLocationCallback(this);
     private boolean tracking;
-    private SparseArray<Location> routeArray;
+    private ArrayList<Point> routeArray;
 
     // temporary start timestamp for route
     private Timestamp timestamp;
@@ -85,11 +87,11 @@ public class MainActivity extends AppCompatActivity implements
         setNavigation();
         mapReadyCallback = this;
         firstLocationStored = false;
-        routeArray = new SparseArray<>();
+        routeArray = new ArrayList<>();
     }
 
     private void setNavigation() {
-        BottomNavigationView navView = findViewById(R.id.nav_view);
+        navView = findViewById(R.id.nav_view);
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
         NavigationUI.setupWithNavController(navView, navController);
     }
@@ -137,14 +139,55 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
+    // Returns false if the user is not moving
+    boolean isMoving(Location lastLocation, Location currentLocation) {
+        return !(lastLocation.getLongitude() == currentLocation.getLongitude()) ||
+                !(lastLocation.getLatitude() == currentLocation.getLatitude());
+    }
+
+    private void drawRoute(ArrayList<Point> routeArray) {
+        mapboxMap.setStyle(Style.OUTDOORS, style -> {
+            // Create the LineString from the list of coordinates and then make a GeoJSON
+            // FeatureCollection so we can add the line to our map as a layer.
+            style.addSource(new GeoJsonSource("line-source",
+                    FeatureCollection.fromFeatures(new Feature[] {Feature.fromGeometry(
+                            LineString.fromLngLats(routeArray)
+                    )})));
+            // The layer properties for our line. This is where we make the line dotted, set the color, etc.
+            style.addLayer(new LineLayer("linelayer", "line-source").withProperties(
+                    PropertyFactory.lineDasharray(new Float[] {0.01f, 2f}),
+                    PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+                    PropertyFactory.lineWidth(5f),
+                    PropertyFactory.lineColor(getColor(R.color.colorAccent))
+            ));
+        });
+    }
+
     @Override
     public void onMapReady(@NonNull final MapboxMap mapboxMap) {
         this.mapboxMap = mapboxMap;
 
+        // Map is set up and the style has loaded. Now you can add data or make other map adjustments
         mapboxMap.setStyle(Style.OUTDOORS, style -> {
-            // Map is set up and the style has loaded. Now you can add data or make other map adjustments
             enableLocationComponent(style);
-            new LoadGeoJson(MainActivity.this).execute();
+
+            if (routeArray != null) {
+                // Create the LineString from the list of coordinates and then make a GeoJSON
+                // FeatureCollection so we can add the line to our map as a layer.
+                style.addSource(new GeoJsonSource("line-source",
+                        FeatureCollection.fromFeatures(new Feature[]{Feature.fromGeometry(
+                                LineString.fromLngLats(routeArray)
+                        )})));
+                // The layer properties for our line. This is where we make the line dotted, set the color, etc.
+                style.addLayer(new LineLayer("linelayer", "line-source").withProperties(
+                        PropertyFactory.lineDasharray(new Float[]{0.01f, 2f}),
+                        PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                        PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+                        PropertyFactory.lineWidth(5f),
+                        PropertyFactory.lineColor(getColor(R.color.colorAccent))
+                ));
+            }
         });
     }
 
@@ -244,12 +287,6 @@ public class MainActivity extends AppCompatActivity implements
                 if (location == null) {
                     return;
                 }
-                if (!activity.firstLocationStored) {
-                    activity.location = location;
-                    activity.firstLocationStored = true;
-                    // need to get first location before getting weather info
-                    activity.processWeatherRequest();
-                }
 
                 // Pass the new location to the Maps SDK's LocationComponent
                 if (activity.mapboxMap != null && result.getLastLocation() != null) {
@@ -257,9 +294,23 @@ public class MainActivity extends AppCompatActivity implements
                 }
 
                 // Store the new location for route tracing
-                if (activity.tracking) {
-                    activity.routeArray.put(activity.routeArray.size(), location);
-                    Log.d(activity.TAG, "routeArray size " + activity.routeArray.size());
+                if (activity.tracking && activity.firstLocationStored) {
+                    try {
+                        Log.v(activity.TAG,  activity.location+ " " + location);
+                        if (activity.isMoving(activity.location, location))
+                            activity.routeArray.add(Point.fromLngLat(location.getLongitude(), location.getLatitude()));
+                        Log.d(activity.TAG, "routeArray size " + activity.routeArray.size());
+                        activity.drawRoute(activity.routeArray);
+                    } catch (Exception e) {
+                        Log.e(activity.TAG,  "Error in onSuccess", e);
+                    }
+                }
+
+                activity.location = location;
+                if (!activity.firstLocationStored) {
+                    activity.firstLocationStored = true;
+                    // need to get first location before getting weather info
+                    activity.processWeatherRequest();
                 }
             }
         }
@@ -279,64 +330,6 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
-    private void drawLines(@NonNull FeatureCollection featureCollection) {
-        if (mapboxMap != null) {
-            mapboxMap.getStyle(style -> {
-                if (featureCollection.features() != null) {
-                    if (featureCollection.features().size() > 0) {
-                        style.addSource(new GeoJsonSource("line-source", featureCollection));
-
-                        // The layer properties for our line. This is where we make the line dotted, set the
-                        // color, etc.
-                        style.addLayer(new LineLayer("linelayer", "line-source")
-                                .withProperties(PropertyFactory.lineCap(Property.LINE_CAP_SQUARE),
-                                        PropertyFactory.lineJoin(Property.LINE_JOIN_MITER),
-                                        PropertyFactory.lineOpacity(.7f),
-                                        PropertyFactory.lineWidth(7f),
-                                        PropertyFactory.lineColor(Color.parseColor("#3bb2d0"))));
-                    }
-                }
-            });
-        }
-    }
-
-    private static class LoadGeoJson extends AsyncTask<Void, Void, FeatureCollection> {
-
-        private WeakReference<MainActivity> weakReference;
-
-        LoadGeoJson(MainActivity activity) {
-            this.weakReference = new WeakReference<>(activity);
-        }
-
-        @Override
-        protected FeatureCollection doInBackground(Void... voids) {
-            try {
-                MainActivity activity = weakReference.get();
-                if (activity != null) {
-                    InputStream inputStream = activity.getAssets().open("example.geojson");
-                    return FeatureCollection.fromJson(convertStreamToString(inputStream));
-                }
-            } catch (Exception exception) {
-                Log.e("Exception Loading GeoJSON: %s" , exception.toString());
-            }
-            return null;
-        }
-
-        static String convertStreamToString(InputStream is) {
-            Scanner scanner = new Scanner(is).useDelimiter("\\A");
-            return scanner.hasNext() ? scanner.next() : "";
-        }
-
-        @Override
-        protected void onPostExecute(@Nullable FeatureCollection featureCollection) {
-            super.onPostExecute(featureCollection);
-            MainActivity activity = weakReference.get();
-            if (activity != null && featureCollection != null) {
-                activity.drawLines(featureCollection);
-            }
-        }
-    }
-
     @Override
     public void onDestroy() {
         super.onDestroy();
@@ -349,11 +342,14 @@ public class MainActivity extends AppCompatActivity implements
     public void track(boolean tracking) {
         this.tracking = tracking;
         if (tracking) {
+            navView.setVisibility(View.GONE);
             timestamp = new Timestamp(System.currentTimeMillis());
             Log.d(TAG, "Started tracking " + timestamp);
         } else {
+            navView.setVisibility(View.VISIBLE);
             Route route = new Route(timestamp, new Timestamp(System.currentTimeMillis()), routeArray);
             Log.d(TAG, "Stopped tracking " + route.getEnd());
+            drawRoute(routeArray);
         }
     }
 

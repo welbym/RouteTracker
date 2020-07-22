@@ -2,7 +2,7 @@
 <resources>
     <color name="colorPrimary">#7878FF</color>
     <color name="colorPrimaryDark">#000000</color>
-    <color name="colorAccent">#78FFFF</color>
+    <color name="colorAccent">#FF9A78</color>
     <color name="badWeather">#FF7878</color>
     <color name="midWeather">#FFFF78</color>
     <color name="goodWeather">#78FF78</color>
