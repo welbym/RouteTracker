@@ -1,6 +1,9 @@
 package com.example.routetracker;
 
 import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Intent;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
@@ -41,6 +44,7 @@ import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.NavigationUI;
@@ -345,7 +349,9 @@ public class MainActivity extends AppCompatActivity implements
             navView.setVisibility(View.GONE);
             timestamp = new Timestamp(System.currentTimeMillis());
             Log.d(TAG, "Started tracking " + timestamp);
+            startService(new Intent(this, LocationService.class));
         } else {
+            stopService(new Intent(this, LocationService.class));
             navView.setVisibility(View.VISIBLE);
             Route route = new Route(timestamp, new Timestamp(System.currentTimeMillis()), routeArray);
             Log.d(TAG, "Stopped tracking " + route.getEnd());
