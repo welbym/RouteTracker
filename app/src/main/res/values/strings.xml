@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">RouteTracker</string>
+    <string name="app_name">Route Tracker</string>
     <string name="title_recent">Recent</string>
     <string name="title_map">Map</string>
     <string name="title_weather">Weather</string>
