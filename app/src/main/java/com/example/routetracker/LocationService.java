@@ -37,6 +37,7 @@ public class LocationService extends Service {
                 .setSmallIcon(R.drawable.ic_navigation)
                 .setShowWhen(false)
                 .setContentTitle("Tracking Route")
+                .setContentText("Tap to open app")
                 .setContentIntent(pendingIntent)
                 .setOngoing(true).build();
 
