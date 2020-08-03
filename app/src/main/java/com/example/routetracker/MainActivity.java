@@ -50,6 +50,7 @@ import androidx.navigation.Navigation;
 import androidx.navigation.ui.NavigationUI;
 
 import java.lang.ref.WeakReference;
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -75,11 +76,12 @@ public class MainActivity extends AppCompatActivity implements
     private boolean tracking;
     private ArrayList<Point> routeArray;
 
-    // temporary start timestamp for route
-    private Timestamp timestamp;
+    // Temporary Route object
+    private Route route;
 
     // Variables used for WeatherFragment
     private String weatherText;
+    private String degreeText;
     private String weatherIcon;
     private int weatherColor;
 
@@ -105,8 +107,9 @@ public class MainActivity extends AppCompatActivity implements
             // Create API call to OpenWeather
             // Instantiate the RequestQueue.
             RequestQueue queue = Volley.newRequestQueue(this);
-            String url = "https://api.openweathermap.org/data/2.5/weather?appid=" + getString(R.string.weather_access_token) +
-                    "&lat=" + location.getLatitude() + "&lon=" + location.getLongitude();
+            String url = "https://api.openweathermap.org/data/2.5/weather?units=imperial&appid=" +
+                    getString(R.string.weather_access_token) + "&lat=" + location.getLatitude() +
+                    "&lon=" + location.getLongitude();
 
             // Request a string response from the provided URL.
             StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
@@ -118,8 +121,7 @@ public class MainActivity extends AppCompatActivity implements
                         JsonObject jsonWeatherObject = gson.fromJson(weatherString.substring(1,
                                 weatherString.length() - 1), JsonObject.class);
                         weatherText = jsonWeatherObject.get("main").getAsString();
-                        weatherIcon = "https://openweathermap.org/img/wn/" +
-                                jsonWeatherObject.get("icon").getAsString() + "@2x.png";
+                        weatherIcon = jsonWeatherObject.get("icon").getAsString();
                         int weatherID = jsonWeatherObject.get("id").getAsInt();
                         if (weatherID < 800) {
                             // Any ID below 800 is bad weather like rain, snow, thunderstorms
@@ -131,6 +133,7 @@ public class MainActivity extends AppCompatActivity implements
                             // Above 800 is clouds which may or may not be a problem
                             weatherColor = getResources().getColor(R.color.midWeather, null);
                         }
+                        degreeText = jsonResponse.get("main").getAsJsonObject().get("temp").getAsString();
                     }, error -> {
                         weatherText = getString(R.string.ApiError);
                         weatherColor = Color.BLUE;
@@ -340,21 +343,29 @@ public class MainActivity extends AppCompatActivity implements
         if (locationEngine != null) {
             locationEngine.removeLocationUpdates(callback);
         }
+        if (tracking) {
+            assert route != null;
+            route.addTimestamp(new Timestamp(System.currentTimeMillis()));
+        }
     }
 
     @Override
     public void track(boolean tracking) {
         this.tracking = tracking;
+        if (route == null) {
+            route = new Route(new Date(System.currentTimeMillis()));
+        } else {
+            route.addTimestamp(new Timestamp(System.currentTimeMillis()));
+        }
         if (tracking) {
             navView.setVisibility(View.GONE);
-            timestamp = new Timestamp(System.currentTimeMillis());
-            Log.d(TAG, "Started tracking " + timestamp);
             startService(new Intent(this, LocationService.class));
+            Log.d(TAG, "Started tracking");
         } else {
             stopService(new Intent(this, LocationService.class));
+            Log.d(TAG, "Stopped tracking ");
+            route.setRouteArray(routeArray);
             navView.setVisibility(View.VISIBLE);
-            Route route = new Route(timestamp, new Timestamp(System.currentTimeMillis()), routeArray);
-            Log.d(TAG, "Stopped tracking " + route.getEnd());
             drawRoute(routeArray);
         }
     }
@@ -368,6 +379,11 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public String receiveText() {
         return weatherText;
+    }
+
+    @Override
+    public String receiveDegrees() {
+        return degreeText + getString(R.string.fahren);
     }
 
     @Override

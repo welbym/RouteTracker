@@ -6,4 +6,5 @@
     <color name="badWeather">#FF7878</color>
     <color name="midWeather">#FFFF78</color>
     <color name="goodWeather">#78FF78</color>
+    <color name="weatherText">#2B2B2B</color>
 </resources>

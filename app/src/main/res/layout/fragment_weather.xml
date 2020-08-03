@@ -15,17 +15,36 @@
         android:text=""
         android:textSize="40sp"
         android:textStyle="bold"
-        android:textColor="@android:color/darker_gray"
+        android:textColor="@color/weatherText"
         android:shadowColor="@android:color/black"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <TextView
+        android:id="@+id/degrees"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="250dp"
+        android:textAlignment="center"
+        android:text=""
+        android:textSize="50sp"
+        android:textStyle="bold"
+        android:textColor="@color/weatherText"
+        android:shadowColor="@android:color/black"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
     <ImageView
         android:id="@+id/icon"
         android:contentDescription="@string/title_weather"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_centerInParent="true"/>
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="160dp"
+        android:scaleY="-1"
+        android:src="@drawable/ic_stop" />
 
 </RelativeLayout>
