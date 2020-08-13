@@ -1,21 +1,23 @@
 package com.example.routetracker;
 
 import android.annotation.SuppressLint;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.content.Intent;
 import android.graphics.Color;
 import android.location.Location;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.navigation.NavigationView;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
@@ -43,8 +45,11 @@ import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.NotificationManagerCompat;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.NavigationUI;
@@ -60,9 +65,9 @@ public class MainActivity extends AppCompatActivity implements
 
     private final String TAG = "Main Activity";
 
-    private BottomNavigationView navView;
+    private DrawerLayout drawer;
 
-    // Variables used for MapFragment
+        // Variables used for MapFragment
     private static final long DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L;
     private static final long DEFAULT_MAX_WAIT_TIME = DEFAULT_INTERVAL_IN_MILLISECONDS * 5;
     private MapboxMap mapboxMap;
@@ -76,10 +81,10 @@ public class MainActivity extends AppCompatActivity implements
     private boolean tracking;
     private ArrayList<Point> routeArray;
 
-    // Temporary Route object
+        // Temporary Route object
     private Route route;
 
-    // Variables used for WeatherFragment
+        // Variables used for WeatherFragment
     private String weatherText;
     private String degreeText;
     private String weatherIcon;
@@ -97,25 +102,33 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void setNavigation() {
-        navView = findViewById(R.id.nav_view);
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        drawer = findViewById(R.id.drawerLayout);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer, toolbar,
+                R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
+        toggle.syncState();
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
+        NavigationView navView = findViewById(R.id.nav_view);
         NavigationUI.setupWithNavController(navView, navController);
     }
 
     private void processWeatherRequest() {
         try {
-            // Create API call to OpenWeather
-            // Instantiate the RequestQueue.
+                // Create API call to OpenWeather
+                // Instantiate the RequestQueue.
             RequestQueue queue = Volley.newRequestQueue(this);
             String url = "https://api.openweathermap.org/data/2.5/weather?units=imperial&appid=" +
                     getString(R.string.weather_access_token) + "&lat=" + location.getLatitude() +
                     "&lon=" + location.getLongitude();
 
-            // Request a string response from the provided URL.
+                // Request a string response from the provided URL.
             StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
                     response -> {
                         Gson gson = new Gson();
-                        // turns String response into a JsonObject
+                            // turns String response into a JsonObject
                         JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
                         String weatherString = jsonResponse.get("weather").toString();
                         JsonObject jsonWeatherObject = gson.fromJson(weatherString.substring(1,
@@ -124,29 +137,29 @@ public class MainActivity extends AppCompatActivity implements
                         weatherIcon = jsonWeatherObject.get("icon").getAsString();
                         int weatherID = jsonWeatherObject.get("id").getAsInt();
                         if (weatherID < 800) {
-                            // Any ID below 800 is bad weather like rain, snow, thunderstorms
+                                // Any ID below 800 is bad weather like rain, snow, thunderstorms
                             weatherColor = getResources().getColor(R.color.badWeather, null);
                         } else if (weatherID == 800) {
-                            // 800 ID means weather is clear
+                                // 800 ID means weather is clear
                             weatherColor = getResources().getColor(R.color.goodWeather, null);
                         } else {
-                            // Above 800 is clouds which may or may not be a problem
+                                // Above 800 is clouds which may or may not be a problem
                             weatherColor = getResources().getColor(R.color.midWeather, null);
                         }
                         degreeText = jsonResponse.get("main").getAsJsonObject().get("temp").getAsString();
                     }, error -> {
-                        weatherText = getString(R.string.ApiError);
-                        weatherColor = Color.BLUE;
-                    });
+                weatherText = getString(R.string.ApiError);
+                weatherColor = Color.BLUE;
+            });
 
-            // Add the request to the RequestQueue.
+                // Add the request to the RequestQueue.
             queue.add(stringRequest);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    // Returns false if the user is not moving
+        // Returns false if the user is not moving
     boolean isMoving(Location lastLocation, Location currentLocation) {
         return !(lastLocation.getLongitude() == currentLocation.getLongitude()) ||
                 !(lastLocation.getLatitude() == currentLocation.getLatitude());
@@ -154,15 +167,15 @@ public class MainActivity extends AppCompatActivity implements
 
     private void drawRoute(ArrayList<Point> routeArray) {
         mapboxMap.setStyle(Style.OUTDOORS, style -> {
-            // Create the LineString from the list of coordinates and then make a GeoJSON
-            // FeatureCollection so we can add the line to our map as a layer.
+                // Create the LineString from the list of coordinates and then make a GeoJSON
+                // FeatureCollection so we can add the line to our map as a layer.
             style.addSource(new GeoJsonSource("line-source",
-                    FeatureCollection.fromFeatures(new Feature[] {Feature.fromGeometry(
+                    FeatureCollection.fromFeatures(new Feature[]{Feature.fromGeometry(
                             LineString.fromLngLats(routeArray)
                     )})));
-            // The layer properties for our line. This is where we make the line dotted, set the color, etc.
+                // The layer properties for our line. This is where we make the line dotted, set the color, etc.
             style.addLayer(new LineLayer("linelayer", "line-source").withProperties(
-                    PropertyFactory.lineDasharray(new Float[] {0.01f, 2f}),
+                    PropertyFactory.lineDasharray(new Float[]{0.01f, 2f}),
                     PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                     PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
                     PropertyFactory.lineWidth(5f),
@@ -175,18 +188,18 @@ public class MainActivity extends AppCompatActivity implements
     public void onMapReady(@NonNull final MapboxMap mapboxMap) {
         this.mapboxMap = mapboxMap;
 
-        // Map is set up and the style has loaded. Now you can add data or make other map adjustments
+            // Map is set up and the style has loaded. Now you can add data or make other map adjustments
         mapboxMap.setStyle(Style.OUTDOORS, style -> {
             enableLocationComponent(style);
 
             if (routeArray != null) {
-                // Create the LineString from the list of coordinates and then make a GeoJSON
-                // FeatureCollection so we can add the line to our map as a layer.
+                    // Create the LineString from the list of coordinates and then make a GeoJSON
+                    // FeatureCollection so we can add the line to our map as a layer.
                 style.addSource(new GeoJsonSource("line-source",
                         FeatureCollection.fromFeatures(new Feature[]{Feature.fromGeometry(
                                 LineString.fromLngLats(routeArray)
                         )})));
-                // The layer properties for our line. This is where we make the line dotted, set the color, etc.
+                    // The layer properties for our line. This is where we make the line dotted, set the color, etc.
                 style.addLayer(new LineLayer("linelayer", "line-source").withProperties(
                         PropertyFactory.lineDasharray(new Float[]{0.01f, 2f}),
                         PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
@@ -201,30 +214,30 @@ public class MainActivity extends AppCompatActivity implements
     /**
      * Initialize the Maps SDK's LocationComponent
      */
-    @SuppressWarnings( {"MissingPermission"})
+    @SuppressWarnings({"MissingPermission"})
     private void enableLocationComponent(@NonNull Style loadedMapStyle) {
-        // Check if permissions are enabled and if not request
+            // Check if permissions are enabled and if not request
         if (PermissionsManager.areLocationPermissionsGranted(this)) {
 
-            // Get an instance of the component
+                // Get an instance of the component
             LocationComponent locationComponent = mapboxMap.getLocationComponent();
 
-            // Set the LocationComponent activation options
+                // Set the LocationComponent activation options
             LocationComponentActivationOptions locationComponentActivationOptions =
                     LocationComponentActivationOptions.builder(this, loadedMapStyle)
                             .useDefaultLocationEngine(false)
                             .build();
 
-            // Activate with the LocationComponentActivationOptions object
+                // Activate with the LocationComponentActivationOptions object
             locationComponent.activateLocationComponent(locationComponentActivationOptions);
 
-            // Enable to make component visible
+                // Enable to make component visible
             locationComponent.setLocationComponentEnabled(true);
 
-            // Set the component's camera mode
+                // Set the component's camera mode
             locationComponent.setCameraMode(CameraMode.TRACKING);
 
-            // Set the component's render mode
+                // Set the component's render mode
             locationComponent.setRenderMode(RenderMode.COMPASS);
 
             initLocationEngine();
@@ -295,28 +308,28 @@ public class MainActivity extends AppCompatActivity implements
                     return;
                 }
 
-                // Pass the new location to the Maps SDK's LocationComponent
+                    // Pass the new location to the Maps SDK's LocationComponent
                 if (activity.mapboxMap != null && result.getLastLocation() != null) {
                     activity.mapboxMap.getLocationComponent().forceLocationUpdate(location);
                 }
 
-                // Store the new location for route tracing
+                    // Store the new location for route tracing
                 if (activity.tracking && activity.firstLocationStored) {
                     try {
-                        Log.v(activity.TAG,  activity.location+ " " + location);
+                        Log.v(activity.TAG, activity.location + " " + location);
                         if (activity.isMoving(activity.location, location))
                             activity.routeArray.add(Point.fromLngLat(location.getLongitude(), location.getLatitude()));
                         Log.d(activity.TAG, "routeArray size " + activity.routeArray.size());
                         activity.drawRoute(activity.routeArray);
                     } catch (Exception e) {
-                        Log.e(activity.TAG,  "Error in onSuccess", e);
+                        Log.e(activity.TAG, "Error in onSuccess", e);
                     }
                 }
 
                 activity.location = location;
                 if (!activity.firstLocationStored) {
                     activity.firstLocationStored = true;
-                    // need to get first location before getting weather info
+                        // need to get first location before getting weather info
                     activity.processWeatherRequest();
                 }
             }
@@ -358,19 +371,17 @@ public class MainActivity extends AppCompatActivity implements
             route.addTimestamp(new Timestamp(System.currentTimeMillis()));
         }
         if (tracking) {
-            navView.setVisibility(View.GONE);
             startService(new Intent(this, LocationService.class));
             Log.d(TAG, "Started tracking");
         } else {
             stopService(new Intent(this, LocationService.class));
             Log.d(TAG, "Stopped tracking ");
             route.setRouteArray(routeArray);
-            navView.setVisibility(View.VISIBLE);
             drawRoute(routeArray);
         }
     }
 
-    // Interface to send callback info to Map Fragment
+        // Interface to send callback info to Map Fragment
     @Override
     public OnMapReadyCallback receiveMapReadyCallback() {
         return mapReadyCallback;
@@ -394,6 +405,15 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public int receiveColor() {
         return weatherColor;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawer.isDrawerOpen(GravityCompat.START)) {
+            drawer.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
     }
 
 }

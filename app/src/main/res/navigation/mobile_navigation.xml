@@ -6,12 +6,6 @@
     app:startDestination="@+id/navigation_map">
 
     <fragment
-        android:id="@+id/navigation_recent"
-        android:name="com.example.routetracker.ui.recent.RecentFragment"
-        android:label="@string/title_recent"
-        tools:layout="@layout/fragment_recent" />
-
-    <fragment
         android:id="@+id/navigation_map"
         android:name="com.example.routetracker.ui.map.MapFragment"
         android:label="@string/title_map"
@@ -22,4 +16,22 @@
         android:name="com.example.routetracker.ui.weather.WeatherFragment"
         android:label="@string/title_weather"
         tools:layout="@layout/fragment_weather" />
+
+    <fragment
+        android:id="@+id/navigation_recent"
+        android:name="com.example.routetracker.ui.recent.RecentFragment"
+        android:label="@string/title_recent"
+        tools:layout="@layout/fragment_recent" />
+
+    <fragment
+        android:id="@+id/navigation_settings"
+        android:name="com.example.routetracker.ui.settings.SettingsFragment"
+        android:label="@string/title_settings"
+        tools:layout="@layout/fragment_settings" />
+
+    <fragment
+        android:id="@+id/navigation_source"
+        android:name="com.example.routetracker.ui.source.SourceFragment"
+        android:label="@string/title_source"
+        tools:layout="@layout/fragment_source" />
 </navigation>

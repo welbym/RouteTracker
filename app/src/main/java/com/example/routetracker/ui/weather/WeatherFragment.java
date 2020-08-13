@@ -45,43 +45,47 @@ public class WeatherFragment extends Fragment {
     private int getIcon(String icon) {
         // set ID to a default back-up value
         int ID = R.drawable.ic_stop;
-        switch (icon) {
-            case "01d":
-                ID = R.drawable.owi_01d;
-                break;
-            case "01n":
-                ID = R.drawable.owi_01n;
-                break;
-            case "02d":
-                ID = R.drawable.owi_02d;
-                break;
-            case "02n":
-                ID = R.drawable.owi_02n;
-                break;
-            case "03d":
-            case "03n":
-            case "04d":
-            case "04n":
-                ID = R.drawable.owi_03_04;
-                break;
-            case "09d":
-            case "09n":
-                ID = R.drawable.owi_09;
-                break;
-            case "10d":
-                ID = R.drawable.owi_10d;
-                break;
-            case "11d":
-                ID = R.drawable.owi_11d;
-                break;
-            case "13d":
-            case "13n":
-                ID = R.drawable.owi_13;
-                break;
-            case "50d":
-            case "50n":
-                ID = R.drawable.owi_50;
-                break;
+        try {
+            switch (icon) {
+                case "01d":
+                    ID = R.drawable.owi_01d;
+                    break;
+                case "01n":
+                    ID = R.drawable.owi_01n;
+                    break;
+                case "02d":
+                    ID = R.drawable.owi_02d;
+                    break;
+                case "02n":
+                    ID = R.drawable.owi_02n;
+                    break;
+                case "03d":
+                case "03n":
+                case "04d":
+                case "04n":
+                    ID = R.drawable.owi_03_04;
+                    break;
+                case "09d":
+                case "09n":
+                    ID = R.drawable.owi_09;
+                    break;
+                case "10d":
+                    ID = R.drawable.owi_10d;
+                    break;
+                case "11d":
+                    ID = R.drawable.owi_11d;
+                    break;
+                case "13d":
+                case "13n":
+                    ID = R.drawable.owi_13;
+                    break;
+                case "50d":
+                case "50n":
+                    ID = R.drawable.owi_50;
+                    break;
+            }
+        } catch (Exception e) {
+            throw(e);
         }
         return ID;
     }
