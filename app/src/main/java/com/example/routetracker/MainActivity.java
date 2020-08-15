@@ -4,13 +4,8 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Color;
 import android.location.Location;
-import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.MenuItem;
-import android.view.View;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -55,13 +50,12 @@ import androidx.navigation.Navigation;
 import androidx.navigation.ui.NavigationUI;
 
 import java.lang.ref.WeakReference;
-import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements
-        OnMapReadyCallback, PermissionsListener, WeatherReceiver, MapReceiver {
+        OnMapReadyCallback, PermissionsListener, WeatherReceiver, MapReceiver, RecentReceiver {
 
     private final String TAG = "Main Activity";
 
@@ -79,16 +73,18 @@ public class MainActivity extends AppCompatActivity implements
     private LocationChangeListeningActivityLocationCallback callback =
             new LocationChangeListeningActivityLocationCallback(this);
     private boolean tracking;
-    private ArrayList<Point> routeArray;
-
-        // Temporary Route object
-    private Route route;
+    private ArrayList<Point> pointArray;
 
         // Variables used for WeatherFragment
     private String weatherText;
     private String degreeText;
     private String weatherIcon;
     private int weatherColor;
+
+        // Variables for RecentFragment
+    private ArrayList<Route> routes;
+        // Temporary Route object
+    private Route route;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,7 +94,8 @@ public class MainActivity extends AppCompatActivity implements
         setNavigation();
         mapReadyCallback = this;
         firstLocationStored = false;
-        routeArray = new ArrayList<>();
+        pointArray = new ArrayList<>();
+        setRecentFragment();
     }
 
     private void setNavigation() {
@@ -115,6 +112,17 @@ public class MainActivity extends AppCompatActivity implements
         NavigationUI.setupWithNavController(navView, navController);
     }
 
+    private void setRecentFragment() {
+        try {
+            routes = new ArrayList<>();
+            routes.add(new Route(System.currentTimeMillis()));
+            Log.d(TAG,"Route date" + routes.get(0).getDate());
+        } catch (Exception e) {
+            Log.e(TAG,"Error with recent fragment", e);
+        }
+    }
+
+        // Gets called once in onSuccess for the LocationEngine
     private void processWeatherRequest() {
         try {
                 // Create API call to OpenWeather
@@ -165,13 +173,13 @@ public class MainActivity extends AppCompatActivity implements
                 !(lastLocation.getLatitude() == currentLocation.getLatitude());
     }
 
-    private void drawRoute(ArrayList<Point> routeArray) {
+    private void drawRoute(ArrayList<Point> pointArray) {
         mapboxMap.setStyle(Style.OUTDOORS, style -> {
                 // Create the LineString from the list of coordinates and then make a GeoJSON
                 // FeatureCollection so we can add the line to our map as a layer.
             style.addSource(new GeoJsonSource("line-source",
                     FeatureCollection.fromFeatures(new Feature[]{Feature.fromGeometry(
-                            LineString.fromLngLats(routeArray)
+                            LineString.fromLngLats(pointArray)
                     )})));
                 // The layer properties for our line. This is where we make the line dotted, set the color, etc.
             style.addLayer(new LineLayer("linelayer", "line-source").withProperties(
@@ -192,12 +200,12 @@ public class MainActivity extends AppCompatActivity implements
         mapboxMap.setStyle(Style.OUTDOORS, style -> {
             enableLocationComponent(style);
 
-            if (routeArray != null) {
+            if (pointArray != null) {
                     // Create the LineString from the list of coordinates and then make a GeoJSON
                     // FeatureCollection so we can add the line to our map as a layer.
                 style.addSource(new GeoJsonSource("line-source",
                         FeatureCollection.fromFeatures(new Feature[]{Feature.fromGeometry(
-                                LineString.fromLngLats(routeArray)
+                                LineString.fromLngLats(pointArray)
                         )})));
                     // The layer properties for our line. This is where we make the line dotted, set the color, etc.
                 style.addLayer(new LineLayer("linelayer", "line-source").withProperties(
@@ -283,6 +291,9 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
+    /**
+     * Class used by MapBox map
+     */
     private static class LocationChangeListeningActivityLocationCallback
             implements LocationEngineCallback<LocationEngineResult> {
 
@@ -318,9 +329,9 @@ public class MainActivity extends AppCompatActivity implements
                     try {
                         Log.v(activity.TAG, activity.location + " " + location);
                         if (activity.isMoving(activity.location, location))
-                            activity.routeArray.add(Point.fromLngLat(location.getLongitude(), location.getLatitude()));
-                        Log.d(activity.TAG, "routeArray size " + activity.routeArray.size());
-                        activity.drawRoute(activity.routeArray);
+                            activity.pointArray.add(Point.fromLngLat(location.getLongitude(), location.getLatitude()));
+                        Log.d(activity.TAG, "routeArray size " + activity.pointArray.size());
+                        activity.drawRoute(activity.pointArray);
                     } catch (Exception e) {
                         Log.e(activity.TAG, "Error in onSuccess", e);
                     }
@@ -350,6 +361,10 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
+    /**
+     * Destroys the location engine to prevent leaks
+     * If user is still tracking route info then it adds a timestamp
+     */
     @Override
     public void onDestroy() {
         super.onDestroy();
@@ -362,11 +377,18 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
+        /**
+         * Triggers when tracking button is pressed
+         * If there's no route for today then create a new one
+         * Else add a timestamp for when the button was pressed
+         * If tracking then start the location service so the user knows
+         * Else stop location service and then set the route's point array and draw the route
+         */
     @Override
     public void track(boolean tracking) {
         this.tracking = tracking;
         if (route == null) {
-            route = new Route(new Date(System.currentTimeMillis()));
+            route = new Route(System.currentTimeMillis());
         } else {
             route.addTimestamp(new Timestamp(System.currentTimeMillis()));
         }
@@ -376,37 +398,68 @@ public class MainActivity extends AppCompatActivity implements
         } else {
             stopService(new Intent(this, LocationService.class));
             Log.d(TAG, "Stopped tracking ");
-            route.setRouteArray(routeArray);
-            drawRoute(routeArray);
+            route.setPointArray(pointArray);
+            drawRoute(pointArray);
         }
     }
 
-        // Interface to send callback info to Map Fragment
+    /**
+     * For the map fragment (Used by MapBox)
+     * @return map ready callback
+     */
     @Override
     public OnMapReadyCallback receiveMapReadyCallback() {
         return mapReadyCallback;
     }
 
+    /**
+     * For weather fragment interface
+     * @return weather condition
+     */
     @Override
     public String receiveText() {
         return weatherText;
     }
 
+    /**
+     * For weather fragment interface
+     * @return weather degrees
+     */
     @Override
     public String receiveDegrees() {
         return degreeText + getString(R.string.fahren);
     }
 
+    /**
+     * For weather fragment interface
+     * @return weather icon
+     */
     @Override
     public String receiveIcon() {
         return weatherIcon;
     }
 
+    /**
+     * For weather fragment interface
+     * @return weather fragment background color
+     */
     @Override
     public int receiveColor() {
         return weatherColor;
     }
 
+    /**
+     * For recent fragment interface
+     * @return ArrayList of routes to display
+     */
+    @Override
+    public ArrayList<Route> receiveRoutes() {
+        return routes;
+    }
+
+    /**
+     * If back is pressed while the Navigation Drawer is open then it closes the drawer
+     */
     @Override
     public void onBackPressed() {
         if (drawer.isDrawerOpen(GravityCompat.START)) {
