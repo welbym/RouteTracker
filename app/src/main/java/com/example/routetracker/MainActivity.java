@@ -1,18 +1,34 @@
 package com.example.routetracker;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
+import android.util.ArraySet;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
+import androidx.navigation.ui.NavigationUI;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.navigation.NavigationView;
+import com.github.dhaval2404.colorpicker.util.SharedPref;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
@@ -37,12 +53,12 @@ import com.mapbox.mapboxsdk.maps.Style;
 import com.mapbox.mapboxsdk.style.layers.LineLayer;
 import com.mapbox.mapboxsdk.style.layers.Property;
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
+import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.navigation.NavController;
@@ -52,7 +68,12 @@ import androidx.navigation.ui.NavigationUI;
 import java.lang.ref.WeakReference;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconAllowOverlap;
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconIgnorePlacement;
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconImage;
 
 public class MainActivity extends AppCompatActivity implements
         OnMapReadyCallback, PermissionsListener, WeatherReceiver, MapReceiver, RecentReceiver {
@@ -60,8 +81,12 @@ public class MainActivity extends AppCompatActivity implements
     private final String TAG = "Main Activity";
 
     private DrawerLayout drawer;
+    private NavigationView navView;
 
-        // Variables used for MapFragment
+    // Variables used for MapFragment
+    private int accentColor;
+
+    // Variables used for MapFragment
     private static final long DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L;
     private static final long DEFAULT_MAX_WAIT_TIME = DEFAULT_INTERVAL_IN_MILLISECONDS * 5;
     private MapboxMap mapboxMap;
@@ -75,22 +100,26 @@ public class MainActivity extends AppCompatActivity implements
     private boolean tracking;
     private ArrayList<Point> pointArray;
 
-        // Variables used for WeatherFragment
+    // Variables used for WeatherFragment
     private String weatherText;
     private String degreeText;
     private String weatherIcon;
     private int weatherColor;
 
-        // Variables for RecentFragment
+    // Variables for RecentFragment
     private ArrayList<Route> routes;
-        // Temporary Route object
+    // Temporary Route object
     private Route route;
+    SharedPreferences sharedPref;
+    private String landmarkIDstring;
+    private List<Feature> landmarkIconFeatureList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Mapbox.getInstance(this, getString(R.string.mapbox_access_token));
         setContentView(R.layout.activity_main);
+        sharedPref = getPreferences(Context.MODE_PRIVATE);
         setNavigation();
         mapReadyCallback = this;
         firstLocationStored = false;
@@ -98,7 +127,12 @@ public class MainActivity extends AppCompatActivity implements
         setRecentFragment();
     }
 
+    /**
+     * First method called
+     * Sets up android elements for navigation
+     */
     private void setNavigation() {
+        navView = findViewById(R.id.nav_view);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -112,14 +146,49 @@ public class MainActivity extends AppCompatActivity implements
         NavigationUI.setupWithNavController(navView, navController);
     }
 
+    /**
+     * Second method called
+     * Mainly used to initialize variables 'routes' to later be sent to RecyclerView adapter
+     */
     private void setRecentFragment() {
-        try {
-            routes = new ArrayList<>();
-            routes.add(new Route(System.currentTimeMillis()));
-            Log.d(TAG,"Route date" + routes.get(0).getDate());
-        } catch (Exception e) {
-            Log.e(TAG,"Error with recent fragment", e);
+        routes = new ArrayList<>();
+        readRoutesFromJSON();
+        if (routes != null) {
+            Log.v(TAG, "Route array length" + routes.size());
         }
+    }
+
+    private void readRoutesFromJSON() {
+        Log.d(TAG,"Reading JSON");
+//        ArraySet<String> routeSet = (ArraySet<String>) sharedPref.getStringSet("routeSet", new ArraySet<>());
+//        for (String route : routeSet) {
+//            routes.add(new Route(route));
+//        }
+
+        // takes String of saved landmarks and splits them into an array
+        landmarkIconFeatureList = new ArrayList<>();
+        String[] landmarkIDStrings = sharedPref.getString("landmarkIDs", "").split(",");
+        Log.v(TAG, "landmarkID: " + Arrays.toString(landmarkIDStrings));
+        for (String id : landmarkIDStrings) {
+            landmarkIconFeatureList.add(Feature.fromGeometry(
+                    Point.fromLngLat(
+                            Double.longBitsToDouble(sharedPref.getLong(id + "lng", 0)),
+                            Double.longBitsToDouble(sharedPref.getLong(id + "lat", 0)))));
+        }
+    }
+
+    private int getLandmarkArrayLength() {
+        return sharedPref.getString("landmarkIDs", "").split(",").length;
+    }
+
+    private void writeRoutesToJSON(ArrayList<Route> routes) {
+        Log.d(TAG,"Writing to JSON");
+        ArraySet<String> routeSet = new ArraySet<>();
+        for (Route route : routes) {
+            routeSet.add(route.toSave());
+        }
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putStringSet("routeSet", routeSet).apply();
     }
 
         // Gets called once in onSuccess for the LocationEngine
@@ -182,12 +251,12 @@ public class MainActivity extends AppCompatActivity implements
                             LineString.fromLngLats(pointArray)
                     )})));
                 // The layer properties for our line. This is where we make the line dotted, set the color, etc.
-            style.addLayer(new LineLayer("linelayer", "line-source").withProperties(
+            style.addLayer(new LineLayer("line-layer", "line-source").withProperties(
                     PropertyFactory.lineDasharray(new Float[]{0.01f, 2f}),
                     PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                     PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
                     PropertyFactory.lineWidth(5f),
-                    PropertyFactory.lineColor(getColor(R.color.colorAccent))
+                    PropertyFactory.lineColor(accentColor)
             ));
         });
     }
@@ -195,27 +264,44 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onMapReady(@NonNull final MapboxMap mapboxMap) {
         this.mapboxMap = mapboxMap;
+        // gets and stores accent color from settings
+        SharedPref sharedPref =  new SharedPref(this);
+        accentColor = sharedPref.getRecentColor(getColor(R.color.colorAccent));
 
             // Map is set up and the style has loaded. Now you can add data or make other map adjustments
         mapboxMap.setStyle(Style.OUTDOORS, style -> {
             enableLocationComponent(style);
+            mapboxMap.getUiSettings().setAttributionTintColor(accentColor);
 
-            if (pointArray != null) {
-                    // Create the LineString from the list of coordinates and then make a GeoJSON
-                    // FeatureCollection so we can add the line to our map as a layer.
-                style.addSource(new GeoJsonSource("line-source",
-                        FeatureCollection.fromFeatures(new Feature[]{Feature.fromGeometry(
-                                LineString.fromLngLats(pointArray)
-                        )})));
-                    // The layer properties for our line. This is where we make the line dotted, set the color, etc.
-                style.addLayer(new LineLayer("linelayer", "line-source").withProperties(
-                        PropertyFactory.lineDasharray(new Float[]{0.01f, 2f}),
-                        PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                        PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-                        PropertyFactory.lineWidth(5f),
-                        PropertyFactory.lineColor(getColor(R.color.colorAccent))
-                ));
-            }
+            // Add the SymbolLayer icon image to the map style
+            style.addImage("marker-image", getResources().getDrawable(R.drawable.mapbox_marker_icon_default, null));
+
+            // Adding a GeoJson source for the SymbolLayer icons.
+            style.addSource(new GeoJsonSource("marker-source", FeatureCollection.fromFeatures(landmarkIconFeatureList)));
+
+            // Adding the actual SymbolLayer to the map style. An offset is added that the bottom of the red
+            // marker icon gets fixed to the coordinate, rather than the middle of the icon being fixed to
+            // the coordinate point. This is offset is not always needed and is dependent on the image
+            // that you use for the SymbolLayer icon.
+                    style.addLayer(new SymbolLayer("marker-layer", "marker-source")
+                            .withProperties(
+                                    iconImage("marker-image"),
+                                    iconAllowOverlap(true),
+                                    iconIgnorePlacement(true)));
+
+//            if (pointArray != null) {
+//                    // Create the LineString from the list of coordinates and then make a GeoJSON
+//                    // FeatureCollection so we can add the line to our map as a layer.
+//                landmarkIconFeatureList.add(Feature.fromGeometry(LineString.fromLngLats(pointArray)));
+//                    // The layer properties for our line. This is where we make the line dotted, set the color, etc.
+//                style.addLayer(new LineLayer("line-layer", "line-source").withProperties(
+//                        PropertyFactory.lineDasharray(new Float[]{0.01f, 2f}),
+//                        PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+//                        PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+//                        PropertyFactory.lineWidth(5f),
+//                        PropertyFactory.lineColor(accentColor)
+//                ));
+//            }
         });
     }
 
@@ -375,6 +461,37 @@ public class MainActivity extends AppCompatActivity implements
             assert route != null;
             route.addTimestamp(new Timestamp(System.currentTimeMillis()));
         }
+        routes.add(route);
+        routes.add(new Route(System.currentTimeMillis()));
+        routes.add(new Route(System.currentTimeMillis()));
+        routes.add(new Route(System.currentTimeMillis()));
+        writeRoutesToJSON(routes);
+
+    }
+
+    /**
+     * Triggers when landmark button is pressed
+     * Records when the landmark was added and the lat long for the point
+     */
+    @Override
+    public void recordLandmark() {
+        double lng = location.getLongitude();
+        double lat = location.getLatitude();
+        int landmarkID = getLandmarkArrayLength() + 1;
+        landmarkIDstring = sharedPref.getString("landmarkTimestamps", "");
+        Log.v(TAG,"landmark string before: " + landmarkIDstring);
+        landmarkIDstring += landmarkID + ",";
+        Log.v(TAG,"landmark string after: " + landmarkIDstring);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putString("landmarkTimestamps", landmarkIDstring)
+                .putLong(landmarkID + "lng", Double.doubleToRawLongBits(lng))
+                .putLong(landmarkID + "lat", Double.doubleToRawLongBits(lat))
+                .apply();
+        Toast.makeText(this, "Recorded landmark", Toast.LENGTH_SHORT).show();
+        landmarkIconFeatureList.add(Feature.fromGeometry(Point.fromLngLat(lng, lat)));
+        mapboxMap.setStyle(Style.OUTDOORS, style -> style.addSource(new GeoJsonSource("marker-source",
+                FeatureCollection.fromFeatures(landmarkIconFeatureList))));
+        Log.v(TAG,"MainActivity calling marking function");
     }
 
         /**
@@ -399,7 +516,15 @@ public class MainActivity extends AppCompatActivity implements
             stopService(new Intent(this, LocationService.class));
             Log.d(TAG, "Stopped tracking ");
             route.setPointArray(pointArray);
+            navView.setVisibility(View.VISIBLE);
             drawRoute(pointArray);
+        }
+        if (routes == null || routes.size() == 0) {
+            Log.d(TAG,"JSON Routes are empty");
+        } else {
+            for (Route r : routes) {
+                Log.d(TAG, "JSON Routes: " + r.toString());
+            }
         }
     }
 
@@ -444,7 +569,7 @@ public class MainActivity extends AppCompatActivity implements
      * @return weather fragment background color
      */
     @Override
-    public int receiveColor() {
+    public int receiveWeatherColor() {
         return weatherColor;
     }
 
