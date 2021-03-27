@@ -7,4 +7,7 @@
     <color name="midWeather">#FFFF78</color>
     <color name="goodWeather">#78FF78</color>
     <color name="weatherText">#2B2B2B</color>
+    <color name="positiveButtonTextColor">#7878FF</color>
+    <color name="negativeButtonTextColor">#7878FF</color>
+    <color name="bottomSheetDividerColor">#FF9A78</color>
 </resources>
