@@ -4,5 +4,5 @@ public interface WeatherReceiver {
     String receiveText();
     String receiveDegrees();
     String receiveIcon();
-    int receiveColor();
+    int receiveWeatherColor();
 }
