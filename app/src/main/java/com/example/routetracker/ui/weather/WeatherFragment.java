@@ -38,7 +38,7 @@ public class WeatherFragment extends Fragment {
         degreeText.setText(receiver.receiveDegrees());
 
         weatherIcon.setImageDrawable(getResources().getDrawable(getIcon(receiver.receiveIcon()), null));
-        view.setBackgroundColor(receiver.receiveColor());
+        view.setBackgroundColor(receiver.receiveWeatherColor());
         return view;
     }
 
