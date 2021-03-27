@@ -13,5 +13,12 @@
     <string name="new_location">Lat: % Lon: %</string>
     <string name="ApiError">That didn\'t work!</string>
     <string name="fahren">° F</string>
-    <!-- Add a string array for each fragment to pair things together -->
+    <string name="pick_accent">Pick Accent Color</string>
+    <string name="tracking_start">Started tracking</string>
+    <string name="tracking_stop">Stopped tracking</string>
+    <string name="notification_title">Tracking route</string>
+    <string name="notification_text">Tap to open app</string>
+    <string name="landmark_button_description">Add landmark</string>
+    <string name="tracking_button_description">Start/Stop tracking</string>
+    <string name="recorded_landmark">Recorded Landmark</string>
 </resources>

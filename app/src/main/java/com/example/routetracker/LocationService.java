@@ -24,7 +24,7 @@ public class LocationService extends Service {
 
     @Override
     public void onCreate() {
-        Toast.makeText(this, "Service Created", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, R.string.tracking_start, Toast.LENGTH_LONG).show();
 
     }
 
@@ -36,8 +36,8 @@ public class LocationService extends Service {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_navigation)
                 .setShowWhen(false)
-                .setContentTitle("Tracking Route")
-                .setContentText("Tap to open app")
+                .setContentTitle(getString(R.string.notification_title))
+                .setContentText(getString(R.string.notification_text))
                 .setContentIntent(pendingIntent)
                 .setOngoing(true).build();
 
@@ -47,7 +47,7 @@ public class LocationService extends Service {
 
     @Override
     public void onDestroy() {
-        Toast.makeText(this, "Service Stopped", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, R.string.tracking_stop, Toast.LENGTH_LONG).show();
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 
         // notificationId is a unique int for each notification that you must define
