@@ -1,7 +1,6 @@
 package com.example.routetracker;
 
-import android.text.GetChars;
-
+import androidx.annotation.NonNull;
 import java.util.ArrayList;
 
 import com.mapbox.geojson.Point;
@@ -12,9 +11,15 @@ import java.sql.Timestamp;
 public class Route {
 
     private Date date;
+    private double distance;
+    private long totalTime;
     private ArrayList<Timestamp> timestampArrayList;
     private ArrayList<Point> pointArray;
 
+    /**
+     * Default constructor
+     * @param currentTime current time taken from system clock
+     */
     Route(long currentTime) {
         date = new Date(currentTime);
         Timestamp timestamp = new Timestamp(currentTime);
@@ -25,22 +30,52 @@ public class Route {
     public Date getDate() { return date; }
 
     public void addTimestamp(Timestamp timestamp) { timestampArrayList.add(timestamp); }
+    /**
+     * Constructor used for creating Routes from JSON
+     */
+    Route(String Json) {
+        String[] brokenJson = Json.split(", ");
+        date = Date.valueOf(brokenJson[0]);
+        distance = Double.parseDouble(brokenJson[1]);
+        totalTime = Integer.parseInt(brokenJson[2]);
+    }
 
     public ArrayList<Timestamp> getTimeArray() { return timestampArrayList; }
 
         // get estimated total time from timestamps
     public long getTotalTime() {
-        return 21;
+        totalTime = 21;
+        return totalTime;
     }
 
-    public void setPointArray(ArrayList<Point> routeArray) { this.pointArray = routeArray; }
+    void setPointArray(ArrayList<Point> pointArray) { this.pointArray = pointArray; }
 
-    public ArrayList<Point> getPointArray() {
-        return pointArray;
+    public ArrayList<String> getPointArrayString() {
+        ArrayList<String> stringArrayList = new ArrayList<>();
+        for (Point point : pointArray) {
+            stringArrayList.add(point.toJson());
+        }
+        return stringArrayList;
     }
 
         // get estimated total distance
     public double getDistance() {
-        return 6.9;
+        distance = 6.9;
+        return distance;
+    }
+
+    public String toSave() {
+        return date.toString() + ", " + distance + ", " + totalTime;
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return "Route{"
+                + "Points=" + getPointArrayString()
+                + ", Date=" + date.toString()
+                + ", Distance=" + distance
+                + ", Time=" + totalTime
+                + "}";
     }
 }
