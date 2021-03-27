@@ -13,14 +13,26 @@
         mapbox:mapbox_cameraTargetLng="-87.6233"
         mapbox:mapbox_cameraZoom="16" />
 
-    <Button
-        android:id="@+id/tracking_button"
-        android:layout_width="80dp"
+    <ImageButton
+        android:id="@+id/landmark_button"
+        android:layout_width="110dp"
         android:layout_height="60dp"
         android:layout_alignParentEnd="true"
         android:layout_alignParentBottom="true"
-        android:layout_marginEnd="8dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="80dp"
+        android:contentDescription="@string/landmark_button_description"
+        android:src="@drawable/ic_add_location_black_24dp" />
+
+    <ImageButton
+        android:id="@+id/tracking_button"
+        android:layout_width="110dp"
+        android:layout_height="60dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="10dp"
         android:layout_marginBottom="8dp"
-        android:drawableTop="@drawable/ic_start" />
+        android:contentDescription="@string/tracking_button_description"
+        android:src="@drawable/ic_start" />
 
 </RelativeLayout>
