@@ -42,7 +42,11 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
 
     @Override
     public int getItemCount() {
-        return routeArray.size();
+        if (routeArray == null) {
+            return 0;
+        } else {
+            return routeArray.size();
+        }
     }
 
     static class RecentViewHolder extends RecyclerView.ViewHolder {
