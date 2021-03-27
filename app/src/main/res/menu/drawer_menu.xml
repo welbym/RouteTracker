@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <group android:checkableBehavior="single">
+
+        <item
+            android:id="@+id/navigation_map"
+            android:icon="@drawable/ic_map_black_24dp"
+            android:title="@string/title_map" />
+
+        <item
+            android:id="@+id/navigation_weather"
+            android:icon="@drawable/ic_sun_black_24dp"
+            android:title="@string/title_weather" />
+
+        <item
+            android:id="@+id/navigation_recent"
+            android:icon="@drawable/ic_loop_black_24dp"
+            android:title="@string/title_recent" />
+
+        <item
+            android:id="@+id/navigation_settings"
+            android:icon="@drawable/ic_settings_black_24dp"
+            android:title="@string/title_settings" />
+
+        <item
+            android:id="@+id/navigation_source"
+            android:icon="@drawable/ic_github_black_24dp"
+            android:title="@string/menu_github" />
+    </group>
+
+</menu>
