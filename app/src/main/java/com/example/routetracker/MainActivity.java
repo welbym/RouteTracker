@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
@@ -13,7 +14,6 @@ import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -26,9 +26,9 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.example.routetracker.ui.map.MapFragment;
 import com.google.android.material.navigation.NavigationView;
 import com.github.dhaval2404.colorpicker.util.SharedPref;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
@@ -43,27 +43,28 @@ import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.geojson.LineString;
 import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
+import com.mapbox.mapboxsdk.geometry.LatLng;
 import com.mapbox.mapboxsdk.location.LocationComponent;
 import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions;
 import com.mapbox.mapboxsdk.location.modes.CameraMode;
 import com.mapbox.mapboxsdk.location.modes.RenderMode;
+import com.mapbox.mapboxsdk.maps.MapView;
 import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
 import com.mapbox.mapboxsdk.maps.Style;
+import com.mapbox.mapboxsdk.plugins.annotation.Symbol;
+import com.mapbox.mapboxsdk.plugins.annotation.SymbolManager;
+import com.mapbox.mapboxsdk.plugins.annotation.SymbolOptions;
 import com.mapbox.mapboxsdk.style.layers.LineLayer;
 import com.mapbox.mapboxsdk.style.layers.Property;
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
+import com.mapbox.mapboxsdk.style.layers.PropertyValue;
 import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
+import com.mapbox.mapboxsdk.plugins.markerview.MarkerView;
+import com.mapbox.mapboxsdk.plugins.markerview.MarkerViewManager;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBarDrawerToggle;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
-import androidx.navigation.ui.NavigationUI;
 
 import java.lang.ref.WeakReference;
 import java.sql.Timestamp;
@@ -90,6 +91,7 @@ public class MainActivity extends AppCompatActivity implements
     private static final long DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L;
     private static final long DEFAULT_MAX_WAIT_TIME = DEFAULT_INTERVAL_IN_MILLISECONDS * 5;
     private MapboxMap mapboxMap;
+    private MapView mapView;
     private PermissionsManager permissionsManager;
     private LocationEngine locationEngine;
     private Location location;
@@ -268,26 +270,10 @@ public class MainActivity extends AppCompatActivity implements
         SharedPref sharedPref =  new SharedPref(this);
         accentColor = sharedPref.getRecentColor(getColor(R.color.colorAccent));
 
-            // Map is set up and the style has loaded. Now you can add data or make other map adjustments
+        // Map is set up and the style has loaded. Now you can add data or make other map adjustments
         mapboxMap.setStyle(Style.OUTDOORS, style -> {
             enableLocationComponent(style);
             mapboxMap.getUiSettings().setAttributionTintColor(accentColor);
-
-            // Add the SymbolLayer icon image to the map style
-            style.addImage("marker-image", getResources().getDrawable(R.drawable.mapbox_marker_icon_default, null));
-
-            // Adding a GeoJson source for the SymbolLayer icons.
-            style.addSource(new GeoJsonSource("marker-source", FeatureCollection.fromFeatures(landmarkIconFeatureList)));
-
-            // Adding the actual SymbolLayer to the map style. An offset is added that the bottom of the red
-            // marker icon gets fixed to the coordinate, rather than the middle of the icon being fixed to
-            // the coordinate point. This is offset is not always needed and is dependent on the image
-            // that you use for the SymbolLayer icon.
-                    style.addLayer(new SymbolLayer("marker-layer", "marker-source")
-                            .withProperties(
-                                    iconImage("marker-image"),
-                                    iconAllowOverlap(true),
-                                    iconIgnorePlacement(true)));
 
 //            if (pointArray != null) {
 //                    // Create the LineString from the list of coordinates and then make a GeoJSON
@@ -469,14 +455,10 @@ public class MainActivity extends AppCompatActivity implements
 
     }
 
-    /**
-     * Triggers when landmark button is pressed
-     * Records when the landmark was added and the lat long for the point
-     */
     @Override
     public void recordLandmark() {
-        double lng = location.getLongitude();
         double lat = location.getLatitude();
+        double lng = location.getLongitude();
         int landmarkID = getLandmarkArrayLength() + 1;
         landmarkIDstring = sharedPref.getString("landmarkTimestamps", "");
         Log.v(TAG,"landmark string before: " + landmarkIDstring);
@@ -487,11 +469,42 @@ public class MainActivity extends AppCompatActivity implements
                 .putLong(landmarkID + "lng", Double.doubleToRawLongBits(lng))
                 .putLong(landmarkID + "lat", Double.doubleToRawLongBits(lat))
                 .apply();
+        try {
+            mapboxMap.setStyle(Style.OUTDOORS, style -> {
+                SymbolManager symbolManager = new SymbolManager(mapView, mapboxMap, style);
+                symbolManager.setIconAllowOverlap(true);
+                Symbol symbol = symbolManager.create(new SymbolOptions()
+                        .withLatLng(new LatLng(lat, lng))
+                        .withIconSize(2.0f));
+                landmarkIconFeatureList.add(Feature.fromGeometry(symbol.getGeometry()));
+                // Add the SymbolLayer icon image to the map style
+                style.addImage("marker-image", BitmapFactory.decodeResource(
+                        MainActivity.this.getResources(), R.drawable.mapbox_marker_icon_default));
+
+                // Adding a GeoJson source for the SymbolLayer icons.
+                style.addSource(new GeoJsonSource("marker-source", FeatureCollection.fromFeatures(landmarkIconFeatureList)));
+
+                // Adding the actual SymbolLayer to the map style. An offset is added that the bottom of the red
+                // marker icon gets fixed to the coordinate, rather than the middle of the icon being fixed to
+                // the coordinate point. This is offset is not always needed and is dependent on the image
+                // that you use for the SymbolLayer icon.
+                style.addLayer(new SymbolLayer("marker-layer", "marker-source")
+                        .withProperties(
+                                PropertyFactory.iconImage("marker-image"),
+                                PropertyFactory.iconAllowOverlap(true),
+                                PropertyFactory.iconIgnorePlacement(true)));
+            });
+        } catch(Exception e) {
+            Log.e(TAG,"couldn't record landmark", e);
+        }
         Toast.makeText(this, "Recorded landmark", Toast.LENGTH_SHORT).show();
-        landmarkIconFeatureList.add(Feature.fromGeometry(Point.fromLngLat(lng, lat)));
-        mapboxMap.setStyle(Style.OUTDOORS, style -> style.addSource(new GeoJsonSource("marker-source",
-                FeatureCollection.fromFeatures(landmarkIconFeatureList))));
+
         Log.v(TAG,"MainActivity calling marking function");
+    }
+
+    @Override
+    public void fetchMapView(MapView mapView) {
+        this.mapView = mapView;
     }
 
         /**

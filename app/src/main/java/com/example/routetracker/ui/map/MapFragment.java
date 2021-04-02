@@ -45,6 +45,7 @@ public class MapFragment extends Fragment {
         mapView = view.findViewById(R.id.mapView);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(receiver.receiveMapReadyCallback());
+        receiver.fetchMapView(mapView);
         tracking = false;
         int accentColor = ContextCompat.getColor(requireContext(), R.color.colorAccent);
         int savedColor = new SharedPref(requireContext()).getRecentColor(accentColor);
